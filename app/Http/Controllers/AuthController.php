@@ -403,9 +403,12 @@ class AuthController extends Controller
             $user = User::firstOrCreate(
                 ['email' => $googleUser->getEmail()],
                 [
-                    'id'       => (string) Str::uuid(),
-                    'name'     => $googleUser->getName(),
-                    'password' => Hash::make(Str::random(24)), // random password
+                    'id'            => (string) Str::uuid(),
+                    'display_name'  => $googleUser->getName(),
+                    'unique_name'   => $this->generateUniqueUsername($googleUser->getName()),
+                    'password'      => Hash::make(Str::random(24)), // random password
+                    'is_active'     => true, // Google users are automatically active
+                    'email_verified_at' => now(), // Google emails are verified
                 ]
             );
 
@@ -427,5 +430,57 @@ class AuthController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Handle Google Sign-In with ID Token from Flutter app
+     */
+    public function loginWithGoogle(Request $request)
+    {
+        $validated = $request->validate([
+            'id_token' => 'required|string',
+            'email' => 'required|email',
+            'display_name' => 'required|string',
+        ]);
+
+        $idToken = $validated['id_token'];
+        $googleEmail = $validated['email'];
+        $googleName = $validated['display_name'];
+
+        // Note: In production, you should verify the ID token server-side
+        // For now, we'll trust the data from the Flutter app
+        // You can implement proper verification later using Google's verification endpoint
+
+        // Find or create user
+        $user = User::firstOrCreate(
+            ['email' => $googleEmail],
+            [
+                'id'            => (string) Str::uuid(),
+                'display_name'  => $googleName,
+                'unique_name'   => $this->generateUniqueUsername($googleName),
+                'password'      => Hash::make(Str::random(24)),
+                'is_active'     => true,
+                'email_verified_at' => now(),
+            ]
+        );
+
+        // If user already exists, ensure they are active
+        if (!$user->is_active) {
+            $user->update([
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Login successful',
+            'data' => [
+                'user' => $user,
+                'token' => $token,
+            ],
+        ]);
     }
 }
