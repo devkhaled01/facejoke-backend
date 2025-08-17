@@ -17,6 +17,7 @@ Route::prefix('v1')->middleware(\App\Http\Middleware\CheckAppToken::class)->grou
     Route::post('auth/send-otp', [AuthController::class, 'sendOtpToUser'])->middleware('throttle:5,1');
     Route::post('auth/verify-registration', [AuthController::class, 'verifyRegistration'])->middleware('throttle:5,1');
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('auth/google/login', [AuthController::class, 'loginWithGoogle'])->middleware('throttle:10,1');
 
     Route::get('auth/google', [AuthController::class, 'redirectToGoogle']);
     Route::post('auth/google/callback', [AuthController::class, 'handleGoogleCallback']);
